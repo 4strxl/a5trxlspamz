@@ -18,6 +18,7 @@ local PURPLE = Color3.fromRGB(190,160,255)
 local PURPLE_DARK = Color3.fromRGB(160,130,220)
 local BG = Color3.fromRGB(255,255,255)
 local BTN = Color3.fromRGB(190,160,255)
+local BTN_HOVER = Color3.fromRGB(160,130,220)
 
 -- NOTIFY
 local function notify(t,d)
@@ -57,24 +58,24 @@ gui.IgnoreGuiInset = true
 
 local main = Instance.new("Frame", gui)
 main.Size = UDim2.fromOffset(300,380)
-main.Position = UDim2.fromOffset(60,120)
+main.Position = UDim2.new(1, -310, 0.5, -190) -- right-middle of screen
 main.BackgroundColor3 = BG
 main.BorderSizePixel = 0
-Instance.new("UICorner",main).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
 
-local stroke = Instance.new("UIStroke",main)
+local stroke = Instance.new("UIStroke", main)
 stroke.Color = PURPLE
 stroke.Transparency = 0.25
 
 -- TOP BAR
-local top = Instance.new("Frame",main)
+local top = Instance.new("Frame", main)
 top.Size = UDim2.new(1,0,0,38)
 top.BackgroundColor3 = PURPLE
 top.BorderSizePixel = 0
-Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
+Instance.new("UICorner", top).CornerRadius = UDim.new(0,14)
 
-local title = Instance.new("TextLabel",top)
-title.Size = UDim2.new(1,-120,1,0)
+local title = Instance.new("TextLabel", top)
+title.Size = UDim2.new(1,-90,1,0)
 title.Position = UDim2.fromOffset(12,0)
 title.BackgroundTransparency = 1
 title.Text = TITLE_TEXT
@@ -83,7 +84,7 @@ title.TextSize = 16
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.TextColor3 = Color3.fromRGB(245,245,245)
 
-local refresh = Instance.new("TextButton",top)
+local refresh = Instance.new("TextButton", top)
 refresh.Size = UDim2.fromOffset(78,26)
 refresh.Position = UDim2.new(1,-84,0,6)
 refresh.Text = "Refresh"
@@ -92,51 +93,90 @@ refresh.TextSize = 14
 refresh.TextColor3 = Color3.fromRGB(255,255,255)
 refresh.BackgroundColor3 = PURPLE_DARK
 refresh.BorderSizePixel = 0
-Instance.new("UICorner",refresh).CornerRadius = UDim.new(0,8)
+Instance.new("UICorner", refresh).CornerRadius = UDim.new(0,8)
 
-local minimize = Instance.new("TextButton",top)
-minimize.Size = UDim2.fromOffset(26,26)
-minimize.Position = UDim2.new(1,-28,0,6)
-minimize.Text = "-"
-minimize.Font = Enum.Font.Gotham
-minimize.TextSize = 16
-minimize.TextColor3 = Color3.fromRGB(255,255,255)
-minimize.BackgroundColor3 = PURPLE_DARK
-Instance.new("UICorner",minimize).CornerRadius = UDim.new(0,8)
+-- MINIMIZE BUTTON
+local minBtn = Instance.new("TextButton", top)
+minBtn.Size = UDim2.fromOffset(28,26)
+minBtn.Position = UDim2.new(1,-30,0,6)
+minBtn.Text = "_"
+minBtn.Font = Enum.Font.Gotham
+minBtn.TextSize = 18
+minBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minBtn.BackgroundColor3 = PURPLE_DARK
+minBtn.BorderSizePixel = 0
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0,8)
+
+local minimized = false
 
 -- CONTENT
-local holder = Instance.new("Frame",main)
+local holder = Instance.new("Frame", main)
 holder.Position = UDim2.fromOffset(8,46)
 holder.Size = UDim2.new(1,-16,1,-54)
 holder.BackgroundTransparency = 1
 
-local list = Instance.new("ScrollingFrame",holder)
+local list = Instance.new("ScrollingFrame", holder)
 list.Size = UDim2.fromScale(1,1)
 list.CanvasSize = UDim2.new()
 list.ScrollBarThickness = 6
 list.BackgroundTransparency = 1
 list.BorderSizePixel = 0
 
-local layout = Instance.new("UIListLayout",list)
+local layout = Instance.new("UIListLayout", list)
 layout.Padding = UDim.new(0,6)
 
--- DRAG
+-- MINIMIZE FUNCTION
+minBtn.Activated:Connect(function()
+    minimized = not minimized
+    if minimized then
+        holder.Visible = false
+        main.Size = UDim2.fromOffset(300, 38) -- only top bar
+        for _, btn in ipairs(list:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.Size = UDim2.fromOffset(300, 50) -- bigger buttons visible while minimized
+                btn.TextSize = 16
+            end
+        end
+    else
+        holder.Visible = true
+        main.Size = UDim2.fromOffset(300,380)
+        for _, btn in ipairs(list:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.Size = UDim2.new(1,-6,0,34)
+                btn.TextSize = 14
+            end
+        end
+    end
+end)
+
+-- DRAG (fixed)
 do
-    local dragging,startMouse,startPos
-    top.InputBegan:Connect(function(i)
-        if i.UserInputType==Enum.UserInputType.MouseButton1 then
-            dragging=true
-            startMouse=i.Position
-            startPos=main.Position
-            i.Changed:Connect(function()
-                if i.UserInputState==Enum.UserInputState.End then dragging=false end
+    local dragging, startMouse, startPos
+    top.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            startMouse = input.Position
+            startPos = main.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
             end)
         end
     end)
-    top.InputChanged:Connect(function(i)
-        if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
-            local d=i.Position-startMouse
-            main.Position=UDim2.fromOffset(startPos.X.Offset+d.X,startPos.Y.Offset+d.Y)
+    top.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - startMouse
+            local newX = startPos.X.Offset + delta.X
+            local newY = startPos.Y.Offset + delta.Y
+
+            -- Clamp to screen
+            local viewport = workspace.CurrentCamera.ViewportSize
+            local frameSize = main.AbsoluteSize
+            newX = math.clamp(newX, 0, viewport.X - frameSize.X)
+            newY = math.clamp(newY, 0, viewport.Y - frameSize.Y)
+
+            main.Position = UDim2.fromOffset(newX, newY)
         end
     end)
 end
@@ -150,38 +190,37 @@ local function spamPlayer(plr)
         return
     end
 
-    lastTarget = plr -- update last clicked player
+    lastTarget = plr
 
-    -- Execute commands in order as fast as possible
+    -- Execute all commands in order immediately
     task.spawn(function()
-        for _,cmd in ipairs(COMMANDS) do
+        for _, cmd in ipairs(COMMANDS) do
             if Remote and plr then
                 pcall(function()
-                    Remote:FireServer(plr,cmd)
+                    Remote:FireServer(plr, cmd)
                 end)
             end
         end
         notify("Sent","Spammed @"..plr.Name.." in order")
     end)
 
-    -- Track only this session
+    -- Track only this session for jail/ragdoll after respawn
     local function trackRespawn(char)
         local humanoid = char:WaitForChild("Humanoid",5)
         if not humanoid then return end
 
         humanoid.Died:Once(function()
-            -- Wait for respawn
             plr.CharacterAdded:Wait()
             local newChar = plr.Character
             if newChar and plr == lastTarget and Players:FindFirstChild(plr.Name) then
-                task.wait(0.1) -- wait for blue respawn box
+                task.wait(0.1)
                 if Remote then
                     pcall(function() Remote:FireServer(plr,"jail") end)
                     task.wait(1.2)
                     pcall(function() Remote:FireServer(plr,"ragdoll") end)
                     notify(TITLE_TEXT,"@"..plr.Name.." jailed & ragdolled")
                 end
-                lastTarget = nil -- reset after executing
+                lastTarget = nil
             end
         end)
     end
@@ -191,7 +230,6 @@ local function spamPlayer(plr)
     end
     plr.CharacterAdded:Connect(trackRespawn)
 
-    -- Remove tracking if player leaves
     plr.AncestryChanged:Connect(function(_, parent)
         if not parent and lastTarget == plr then
             lastTarget = nil
@@ -212,11 +250,9 @@ local function section(text)
     return l
 end
 
--- PLAYER BUTTON FUNCTION
-local minimized = false
-
 local function spamButton(plr)
-    local b = Instance.new("TextButton")
+    local b=Instance.new("TextButton")
+    b.Size = UDim2.new(1,-6,0,34)
     b.Text = "  @"..plr.Name
     b.TextXAlignment = Enum.TextXAlignment.Left
     b.Font = Enum.Font.Gotham
@@ -224,26 +260,11 @@ local function spamButton(plr)
     b.TextColor3 = Color3.fromRGB(20,20,20)
     b.BackgroundColor3 = BTN
     b.BorderSizePixel = 0
-    Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
-    b.Size = UDim2.new(1,-6,0,34)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
 
-    b.MouseEnter:Connect(function() b.BackgroundColor3 = PURPLE_DARK end)
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = BTN_HOVER end)
     b.MouseLeave:Connect(function() b.BackgroundColor3 = BTN end)
     b.Activated:Connect(function() spamPlayer(plr) end)
-
-    -- Resize when minimized
-    local function updateSize()
-        if minimized then
-            b.Size = UDim2.new(1,-6,0,50)
-            b.TextSize = 18
-        else
-            b.Size = UDim2.new(1,-6,0,34)
-            b.TextSize = 14
-        end
-    end
-    updateSize()
-    minimize:GetPropertyChangedSignal("Text"):Connect(updateSize)
-
     return b
 end
 
@@ -253,13 +274,13 @@ local function refreshList()
         if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end
     end
 
-    section("spam commands").Parent=list
+    section("spam commands").Parent = list
     for _,p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then spamButton(p).Parent=list end
+        if p ~= LocalPlayer then spamButton(p).Parent = list end
     end
 
     task.wait()
-    list.CanvasSize = UDim2.fromOffset(0,layout.AbsoluteContentSize.Y+10)
+    list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 10)
 end
 
 refresh.MouseButton1Click:Connect(refreshList)
@@ -268,27 +289,3 @@ Players.PlayerRemoving:Connect(refreshList)
 
 refreshList()
 notify(TITLE_TEXT,"Hub loaded successfully")
-
--- MINIMIZE LOGIC
-minimize.Activated:Connect(function()
-    minimized = not minimized
-    if minimized then
-        main.Size = UDim2.fromOffset(300,46)
-        minimize.Text = "+"
-    else
-        main.Size = UDim2.fromOffset(300,380)
-        minimize.Text = "-"
-    end
-
-    for _,v in ipairs(list:GetChildren()) do
-        if v:IsA("TextButton") then
-            if minimized then
-                v.Size = UDim2.new(1,-6,0,50)
-                v.TextSize = 18
-            else
-                v.Size = UDim2.new(1,-6,0,34)
-                v.TextSize = 14
-            end
-        end
-    end
-end)
