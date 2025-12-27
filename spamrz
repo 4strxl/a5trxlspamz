@@ -1,6 +1,6 @@
 -- 4strxl spamrz | White hub + light purple UI
 -- Spam Hub + Jail After Death/Respawn only on last clicked target in current session
--- Commands execute in order
+-- Commands execute in order, spam instantly
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,8 +12,8 @@ repeat task.wait() until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
 -- CONFIG
 local TITLE_TEXT = "4strxl spamrz"
 local COMMANDS = {"rocket","balloon","inverse","tiny","morph","jumpscare"}
-local JAIL_DELAY = 0.6    -- seconds after respawn before jail
-local RAGDOLL_DELAY = 1.2 -- seconds after respawn before ragdoll
+local JAIL_DELAY = 0.6
+local RAGDOLL_DELAY = 1.2
 
 -- COLORS
 local PURPLE = Color3.fromRGB(190,160,255)
@@ -60,7 +60,7 @@ gui.IgnoreGuiInset = true
 
 local main = Instance.new("Frame", gui)
 main.Size = UDim2.fromOffset(300,380)
-main.Position = UDim2.new(1, -310, 0.5, -190) -- right-middle
+main.Position = UDim2.new(1, -310, 0.5, -190)
 main.BackgroundColor3 = BG
 main.BorderSizePixel = 0
 Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
@@ -130,15 +130,28 @@ layout.Padding = UDim.new(0,6)
 -- MINIMIZE FUNCTION
 minBtn.Activated:Connect(function()
     minimized = not minimized
-    holder.Visible = not minimized
     if minimized then
+        holder.Visible = false
         main.Size = UDim2.fromOffset(300, 38)
+        for _, btn in ipairs(list:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.Size = UDim2.fromOffset(300, 50)
+                btn.TextSize = 16
+            end
+        end
     else
+        holder.Visible = true
         main.Size = UDim2.fromOffset(300,380)
+        for _, btn in ipairs(list:GetChildren()) do
+            if btn:IsA("TextButton") then
+                btn.Size = UDim2.new(1,-6,0,34)
+                btn.TextSize = 14
+            end
+        end
     end
 end)
 
--- DRAG (fixed)
+-- DRAG FUNCTION
 do
     local dragging, startMouse, startPos
     top.InputBegan:Connect(function(input)
@@ -158,10 +171,12 @@ do
             local delta = input.Position - startMouse
             local newX = startPos.X.Offset + delta.X
             local newY = startPos.Y.Offset + delta.Y
+
             local viewport = workspace.CurrentCamera.ViewportSize
             local frameSize = main.AbsoluteSize
             newX = math.clamp(newX, 0, viewport.X - frameSize.X)
             newY = math.clamp(newY, 0, viewport.Y - frameSize.Y)
+
             main.Position = UDim2.fromOffset(newX, newY)
         end
     end)
@@ -178,17 +193,15 @@ local function spamPlayer(plr)
 
     lastTarget = plr
 
-    -- Execute all commands in order
-    task.spawn(function()
-        for _, cmd in ipairs(COMMANDS) do
-            if Remote and plr then
-                pcall(function()
-                    Remote:FireServer(plr, cmd)
-                end)
-            end
-        end
-        notify("Sent","Spammed @"..plr.Name.." in order")
-    end)
+    -- SPAM ALL COMMANDS IMMEDIATELY
+    for _, cmd in ipairs(COMMANDS) do
+        task.spawn(function()
+            pcall(function()
+                Remote:FireServer(plr, cmd)
+            end)
+        end)
+    end
+    notify("Sent","Spammed all commands @"..plr.Name.." instantly")
 
     -- Track for jail/ragdoll after respawn
     local function trackRespawn(char)
@@ -227,19 +240,19 @@ end
 
 -- UI HELPERS
 local function section(text)
-    local l = Instance.new("TextLabel")
-    l.Size = UDim2.new(1,-6,0,26)
-    l.BackgroundTransparency = 1
-    l.Text = text
-    l.Font = Enum.Font.GothamBold
-    l.TextSize = 13
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.TextColor3 = Color3.fromRGB(120,120,120)
+    local l=Instance.new("TextLabel")
+    l.Size=UDim2.new(1,-6,0,26)
+    l.BackgroundTransparency=1
+    l.Text=text
+    l.Font=Enum.Font.GothamBold
+    l.TextSize=13
+    l.TextXAlignment=Enum.TextXAlignment.Left
+    l.TextColor3=Color3.fromRGB(120,120,120)
     return l
 end
 
 local function spamButton(plr)
-    local b = Instance.new("TextButton")
+    local b=Instance.new("TextButton")
     b.Size = UDim2.new(1,-6,0,34)
     b.Text = "  @"..plr.Name
     b.TextXAlignment = Enum.TextXAlignment.Left
@@ -261,10 +274,12 @@ local function refreshList()
     for _,v in ipairs(list:GetChildren()) do
         if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end
     end
+
     section("spam commands").Parent = list
     for _,p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then spamButton(p).Parent = list end
     end
+
     task.wait()
     list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 10)
 end
