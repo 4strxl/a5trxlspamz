@@ -1,5 +1,6 @@
 -- 4strxl spamrz | White hub + light purple UI
 -- Spam Hub + Jail After Death/Respawn only on last clicked target in current session
+-- Commands execute in order
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -73,7 +74,7 @@ top.BorderSizePixel = 0
 Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
 
 local title = Instance.new("TextLabel",top)
-title.Size = UDim2.new(1,-90,1,0)
+title.Size = UDim2.new(1,-120,1,0)
 title.Position = UDim2.fromOffset(12,0)
 title.BackgroundTransparency = 1
 title.Text = TITLE_TEXT
@@ -93,6 +94,16 @@ refresh.BackgroundColor3 = PURPLE_DARK
 refresh.BorderSizePixel = 0
 Instance.new("UICorner",refresh).CornerRadius = UDim.new(0,8)
 
+local minimize = Instance.new("TextButton",top)
+minimize.Size = UDim2.fromOffset(26,26)
+minimize.Position = UDim2.new(1,-28,0,6)
+minimize.Text = "-"
+minimize.Font = Enum.Font.Gotham
+minimize.TextSize = 16
+minimize.TextColor3 = Color3.fromRGB(255,255,255)
+minimize.BackgroundColor3 = PURPLE_DARK
+Instance.new("UICorner",minimize).CornerRadius = UDim.new(0,8)
+
 -- CONTENT
 local holder = Instance.new("Frame",main)
 holder.Position = UDim2.fromOffset(8,46)
@@ -101,6 +112,7 @@ holder.BackgroundTransparency = 1
 
 local list = Instance.new("ScrollingFrame",holder)
 list.Size = UDim2.fromScale(1,1)
+list.CanvasSize = UDim2.new()
 list.ScrollBarThickness = 6
 list.BackgroundTransparency = 1
 list.BorderSizePixel = 0
@@ -129,7 +141,7 @@ do
     end)
 end
 
--- SPAM FUNCTION
+-- SPAM FUNCTION (ordered commands)
 local lastTarget -- Only track the last clicked player
 
 local function spamPlayer(plr)
@@ -140,13 +152,17 @@ local function spamPlayer(plr)
 
     lastTarget = plr -- update last clicked player
 
-    for _,cmd in ipairs(COMMANDS) do
-        pcall(function()
-            Remote:FireServer(plr,cmd)
-        end)
-    end
-
-    notify("Sent","Spammed @"..plr.Name)
+    -- Execute commands in order as fast as possible
+    task.spawn(function()
+        for _,cmd in ipairs(COMMANDS) do
+            if Remote and plr then
+                pcall(function()
+                    Remote:FireServer(plr,cmd)
+                end)
+            end
+        end
+        notify("Sent","Spammed @"..plr.Name.." in order")
+    end)
 
     -- Track only this session
     local function trackRespawn(char)
@@ -196,21 +212,38 @@ local function section(text)
     return l
 end
 
-local function spamButton(plr)
-    local b=Instance.new("TextButton")
-    b.Size=UDim2.new(1,-6,0,34)
-    b.Text="  @"..plr.Name
-    b.TextXAlignment=Enum.TextXAlignment.Left
-    b.Font=Enum.Font.Gotham
-    b.TextSize=14
-    b.TextColor3=Color3.fromRGB(20,20,20)
-    b.BackgroundColor3=BTN
-    b.BorderSizePixel=0
-    Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
+-- PLAYER BUTTON FUNCTION
+local minimized = false
 
-    b.MouseEnter:Connect(function() b.BackgroundColor3=PURPLE_DARK end)
-    b.MouseLeave:Connect(function() b.BackgroundColor3=BTN end)
+local function spamButton(plr)
+    local b = Instance.new("TextButton")
+    b.Text = "  @"..plr.Name
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 14
+    b.TextColor3 = Color3.fromRGB(20,20,20)
+    b.BackgroundColor3 = BTN
+    b.BorderSizePixel = 0
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
+    b.Size = UDim2.new(1,-6,0,34)
+
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = PURPLE_DARK end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = BTN end)
     b.Activated:Connect(function() spamPlayer(plr) end)
+
+    -- Resize when minimized
+    local function updateSize()
+        if minimized then
+            b.Size = UDim2.new(1,-6,0,50)
+            b.TextSize = 18
+        else
+            b.Size = UDim2.new(1,-6,0,34)
+            b.TextSize = 14
+        end
+    end
+    updateSize()
+    minimize:GetPropertyChangedSignal("Text"):Connect(updateSize)
+
     return b
 end
 
@@ -235,3 +268,27 @@ Players.PlayerRemoving:Connect(refreshList)
 
 refreshList()
 notify(TITLE_TEXT,"Hub loaded successfully")
+
+-- MINIMIZE LOGIC
+minimize.Activated:Connect(function()
+    minimized = not minimized
+    if minimized then
+        main.Size = UDim2.fromOffset(300,46)
+        minimize.Text = "+"
+    else
+        main.Size = UDim2.fromOffset(300,380)
+        minimize.Text = "-"
+    end
+
+    for _,v in ipairs(list:GetChildren()) do
+        if v:IsA("TextButton") then
+            if minimized then
+                v.Size = UDim2.new(1,-6,0,50)
+                v.TextSize = 18
+            else
+                v.Size = UDim2.new(1,-6,0,34)
+                v.TextSize = 14
+            end
+        end
+    end
+end)
