@@ -12,8 +12,6 @@ repeat task.wait() until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
 -- CONFIG
 local TITLE_TEXT = "4strxl spamrz"
 local COMMANDS = {"rocket","balloon","inverse","tiny","morph","jumpscare"}
-local JAIL_DELAY = 0.6    -- seconds after respawn
-local RAGDOLL_DELAY = 1.2 -- seconds after respawn
 
 -- COLORS
 local PURPLE = Color3.fromRGB(190,160,255)
@@ -176,13 +174,11 @@ local function spamPlayer(plr)
             plr.CharacterAdded:Wait()
             local newChar = plr.Character
             if newChar and plr == lastTarget and Players:FindFirstChild(plr.Name) then
+                task.wait(0.1) -- wait for blue respawn box
                 if Remote then
-                    task.wait(JAIL_DELAY)
                     pcall(function() Remote:FireServer(plr,"jail") end)
-
-                    task.wait(RAGDOLL_DELAY - JAIL_DELAY)
+                    task.wait(1.2)
                     pcall(function() Remote:FireServer(plr,"ragdoll") end)
-
                     notify(TITLE_TEXT,"@"..plr.Name.." jailed & ragdolled")
                 end
                 lastTarget = nil -- reset after executing
@@ -203,4 +199,96 @@ local function spamPlayer(plr)
     end)
 end
 
--- The rest of your GUI code (spamButton, refreshList, minimize logic, etc.) stays the same
+-- UI HELPERS
+local function section(text)
+    local l=Instance.new("TextLabel")
+    l.Size=UDim2.new(1,-6,0,26)
+    l.BackgroundTransparency=1
+    l.Text=text
+    l.Font=Enum.Font.GothamBold
+    l.TextSize=13
+    l.TextXAlignment=Enum.TextXAlignment.Left
+    l.TextColor3=Color3.fromRGB(120,120,120)
+    return l
+end
+
+-- PLAYER BUTTON FUNCTION
+local minimized = false
+
+local function spamButton(plr)
+    local b = Instance.new("TextButton")
+    b.Text = "  @"..plr.Name
+    b.TextXAlignment = Enum.TextXAlignment.Left
+    b.Font = Enum.Font.Gotham
+    b.TextSize = 14
+    b.TextColor3 = Color3.fromRGB(20,20,20)
+    b.BackgroundColor3 = BTN
+    b.BorderSizePixel = 0
+    Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
+    b.Size = UDim2.new(1,-6,0,34)
+
+    b.MouseEnter:Connect(function() b.BackgroundColor3 = PURPLE_DARK end)
+    b.MouseLeave:Connect(function() b.BackgroundColor3 = BTN end)
+    b.Activated:Connect(function() spamPlayer(plr) end)
+
+    -- Resize when minimized
+    local function updateSize()
+        if minimized then
+            b.Size = UDim2.new(1,-6,0,50)
+            b.TextSize = 18
+        else
+            b.Size = UDim2.new(1,-6,0,34)
+            b.TextSize = 14
+        end
+    end
+    updateSize()
+    minimize:GetPropertyChangedSignal("Text"):Connect(updateSize)
+
+    return b
+end
+
+-- REFRESH LIST
+local function refreshList()
+    for _,v in ipairs(list:GetChildren()) do
+        if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end
+    end
+
+    section("spam commands").Parent=list
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then spamButton(p).Parent=list end
+    end
+
+    task.wait()
+    list.CanvasSize = UDim2.fromOffset(0,layout.AbsoluteContentSize.Y+10)
+end
+
+refresh.MouseButton1Click:Connect(refreshList)
+Players.PlayerAdded:Connect(refreshList)
+Players.PlayerRemoving:Connect(refreshList)
+
+refreshList()
+notify(TITLE_TEXT,"Hub loaded successfully")
+
+-- MINIMIZE LOGIC
+minimize.Activated:Connect(function()
+    minimized = not minimized
+    if minimized then
+        main.Size = UDim2.fromOffset(300,46)
+        minimize.Text = "+"
+    else
+        main.Size = UDim2.fromOffset(300,380)
+        minimize.Text = "-"
+    end
+
+    for _,v in ipairs(list:GetChildren()) do
+        if v:IsA("TextButton") then
+            if minimized then
+                v.Size = UDim2.new(1,-6,0,50)
+                v.TextSize = 18
+            else
+                v.Size = UDim2.new(1,-6,0,34)
+                v.TextSize = 14
+            end
+        end
+    end
+end)
