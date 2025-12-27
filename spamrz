@@ -1,6 +1,6 @@
 -- 4strxl spamrz | White hub + light purple UI
 -- Spam Hub + Jail After Death/Respawn only on last clicked target in current session
--- Commands execute in order, spam instantly
+-- Commands execute instantly in order
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -97,7 +97,6 @@ refresh.BackgroundColor3 = PURPLE_DARK
 refresh.BorderSizePixel = 0
 Instance.new("UICorner", refresh).CornerRadius = UDim.new(0,8)
 
--- MINIMIZE BUTTON
 local minBtn = Instance.new("TextButton", top)
 minBtn.Size = UDim2.fromOffset(28,26)
 minBtn.Position = UDim2.new(1,-30,0,6)
@@ -133,25 +132,13 @@ minBtn.Activated:Connect(function()
     if minimized then
         holder.Visible = false
         main.Size = UDim2.fromOffset(300, 38)
-        for _, btn in ipairs(list:GetChildren()) do
-            if btn:IsA("TextButton") then
-                btn.Size = UDim2.fromOffset(300, 50)
-                btn.TextSize = 16
-            end
-        end
     else
         holder.Visible = true
         main.Size = UDim2.fromOffset(300,380)
-        for _, btn in ipairs(list:GetChildren()) do
-            if btn:IsA("TextButton") then
-                btn.Size = UDim2.new(1,-6,0,34)
-                btn.TextSize = 14
-            end
-        end
     end
 end)
 
--- DRAG FUNCTION
+-- DRAG
 do
     local dragging, startMouse, startPos
     top.InputBegan:Connect(function(input)
@@ -171,18 +158,16 @@ do
             local delta = input.Position - startMouse
             local newX = startPos.X.Offset + delta.X
             local newY = startPos.Y.Offset + delta.Y
-
             local viewport = workspace.CurrentCamera.ViewportSize
             local frameSize = main.AbsoluteSize
             newX = math.clamp(newX, 0, viewport.X - frameSize.X)
             newY = math.clamp(newY, 0, viewport.Y - frameSize.Y)
-
             main.Position = UDim2.fromOffset(newX, newY)
         end
     end)
 end
 
--- SPAM FUNCTION
+-- SPAM FUNCTION (instant commands)
 local lastTarget
 
 local function spamPlayer(plr)
@@ -193,12 +178,10 @@ local function spamPlayer(plr)
 
     lastTarget = plr
 
-    -- SPAM ALL COMMANDS IMMEDIATELY
+    -- FIRE ALL COMMANDS INSTANTLY
     for _, cmd in ipairs(COMMANDS) do
-        task.spawn(function()
-            pcall(function()
-                Remote:FireServer(plr, cmd)
-            end)
+        pcall(function()
+            Remote:FireServer(plr, cmd)
         end)
     end
     notify("Sent","Spammed all commands @"..plr.Name.." instantly")
@@ -215,10 +198,8 @@ local function spamPlayer(plr)
                 if Remote then
                     task.wait(JAIL_DELAY)
                     pcall(function() Remote:FireServer(plr,"jail") end)
-
                     task.wait(RAGDOLL_DELAY - JAIL_DELAY)
                     pcall(function() Remote:FireServer(plr,"ragdoll") end)
-
                     notify(TITLE_TEXT,"@"..plr.Name.." jailed & ragdolled")
                 end
                 lastTarget = nil
